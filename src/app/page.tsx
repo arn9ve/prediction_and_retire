@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { LineChart } from '@/components/ui/line-chart'
 import { CalculatorIcon as CalculateIcon, Wallet, Globe, CheckIcon } from 'lucide-react'
 import { runMonteCarloSimulation } from '@/lib/monte-carlo'
@@ -124,9 +124,9 @@ function calculateProjection(
 
 // Add descriptions for ETF types at the top with the other constants
 const ETF_TYPE_DESCRIPTIONS = {
-  'sp500': 'The S&P 500 tracks the 500 largest U.S. companies. It\'s considered the benchmark for the U.S. stock market, offering broad market exposure with historically consistent returns.',
-  'nasdaq100': 'The NASDAQ-100 focuses on the largest non-financial companies listed on the NASDAQ exchange. It\'s heavily weighted towards technology companies, offering higher growth potential with higher volatility.',
-  'total-market': 'Total Market ETFs provide exposure to the entire U.S. stock market, including small, mid, and large-cap stocks. They offer the broadest diversification across all market segments.'
+  'sp500': `The S&P 500 tracks the 500 largest U.S. companies. It's considered the benchmark for the U.S. stock market, offering broad market exposure with historically consistent returns.`,
+  'nasdaq100': `The NASDAQ-100 focuses on the largest non-financial companies listed on the NASDAQ exchange. It's heavily weighted towards technology companies, offering higher growth potential with higher volatility.`,
+  'total-market': `Total Market ETFs provide exposure to the entire U.S. stock market, including small, mid, and large-cap stocks. They offer the broadest diversification across all market segments.`
 } as const;
 
 const isETFTypeId = (id: string): id is ETFTypeId => {
@@ -218,7 +218,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [annualGrowth, setAnnualGrowth] = useState<number>(0)
-  const [chartData, setChartData] = useState<any[]>([])
+  const [chartData, setChartData] = useState<ProjectionDataPoint[]>([])
   const [userCountry, setUserCountry] = useState<CountryInfo>(COUNTRIES[0])
   const [conversionRate, setConversionRate] = useState<number>(1)
   const [hasCalculatedOnce, setHasCalculatedOnce] = useState<boolean>(false)
@@ -230,6 +230,18 @@ export default function Home() {
   const [highlightedLine, setHighlightedLine] = useState<ChartLine | null>(null)
   const [isETFSelectOpen, setIsETFSelectOpen] = useState(false)
   const [marketData, setMarketData] = useState<Record<string, ETFMarketData>>({})
+  const [yearsToRetire, setYearsToRetire] = useState<number>(2.5)
+  const [inflationRate, setInflationRate] = useState<number>(2.5)
+  const [totalPrediction, setTotalPrediction] = useState<number>(0)
+  const [extraIncome, setExtraIncome] = useState<number>(0)
+  const [monthlyExpenses, setMonthlyExpenses] = useState<number>(0)
+
+  // Reset error when dependencies change
+  useEffect(() => {
+    if (error) {
+      setError(null)
+    }
+  }, [monthlyDeposit, selectedETF, annualGrowth])
 
   // Fetch exchange rates
   useEffect(() => {
@@ -244,43 +256,37 @@ export default function Home() {
         setExchangeRates(rates)
       } catch (error) {
         console.error('Error fetching exchange rates:', error)
+        setError('Failed to fetch exchange rates')
       }
     }
-    fetchExchangeRates()
-  }, [])
 
-  // Fetch ETF data
+    fetchExchangeRates()
+  }, []) // Empty dependency array since we only want to fetch once on mount
+
+  // Fetch market data
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchMarketData = async () => {
+      if (!selectedETF) return
+      
       try {
         setIsLoading(true)
-        setError(null)
-
-        const [marketDataResponse] = await Promise.all([
-          fetch('/api/etf-market-data'),
-        ])
-
-        if (!marketDataResponse.ok) {
-          throw new Error('Failed to fetch market data')
-        }
-
-        const marketData = await marketDataResponse.json()
-        setMarketData(marketData.marketData)
-
-        // Set initial annual growth rate
-        if (marketData.marketData[selectedETF]) {
-          setAnnualGrowth(marketData.marketData[selectedETF].annualGrowth)
-        }
+        const response = await fetch(`/api/etf-market-data?symbol=${selectedETF}`)
+        const data = await response.json()
+        setMarketData(prevData => ({
+          ...prevData,
+          [selectedETF]: data
+        }))
+        setAnnualGrowth(data.annualGrowth || 0)
       } catch (error) {
-        console.error('Error fetching initial data:', error)
-        setError(error instanceof Error ? error.message : 'Failed to fetch data')
+        console.error('Error fetching market data:', error)
+        setError('Failed to fetch market data')
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchInitialData()
-  }, [selectedETF])
+    fetchMarketData()
+  }, [selectedETF]) // Add selectedETF as dependency
 
   // Detect user's location
   useEffect(() => {
@@ -317,19 +323,16 @@ export default function Home() {
     getConversionRate()
   }, [selectedCurrency, exchangeRates])
 
-  // Convert values for display
-  const convertToUSD = (value: number) => value / conversionRate
-  const convertFromUSD = (value: number) => value * conversionRate
-
   // Update handleCalculate to use marketData
   const handleCalculate = useCallback(() => {
     if (monthlyDeposit > 0 && marketData && annualGrowth > 0) {
-      setChartData(calculateProjectionData(
+      const newChartData = calculateProjectionData(
         monthlyDeposit,
         annualGrowth,
         30,
         conversionRate
-      ));
+      );
+      setChartData(newChartData);
       setHasCalculatedOnce(true);
     } else if (!marketData || annualGrowth === 0) {
       setError('Unable to calculate: ETF data not available');
@@ -339,44 +342,19 @@ export default function Home() {
   // Update the effect that updates chart data
   useEffect(() => {
     if (hasCalculatedOnce && monthlyDeposit > 0 && marketData && annualGrowth > 0) {
-      setChartData(calculateProjectionData(
+      const newChartData = calculateProjectionData(
         monthlyDeposit,
         annualGrowth,
         30,
         conversionRate
-      ));
+      );
+      setChartData(newChartData);
     }
-  }, [hasCalculatedOnce, monthlyDeposit, marketData, annualGrowth, conversionRate]);
+  }, [hasCalculatedOnce, monthlyDeposit, marketData, annualGrowth, conversionRate, calculateProjectionData]);
 
-  // Fetch market data when component mounts
-  useEffect(() => {
-    setIsLoading(true)
-    fetch('/api/etf-market-data')
-      .then(res => res.json())
-      .then(data => {
-        if (data.marketData) {
-          setMarketData(data.marketData)
-          // Set initial annual growth rate from market data
-          if (data.marketData[selectedETF]) {
-            setAnnualGrowth(data.marketData[selectedETF].annualGrowth)
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Error fetching market data:', error)
-        setError('Error fetching ETF data')
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
-  }, [])
-
-  // Update annual growth when ETF changes
-  useEffect(() => {
-    if (marketData[selectedETF]) {
-      setAnnualGrowth(marketData[selectedETF].annualGrowth)
-    }
-  }, [selectedETF, marketData])
+  // Memoize the conversion functions to prevent unnecessary re-renders
+  const convertToUSD = useCallback((value: number) => value / conversionRate, [conversionRate]);
+  const convertFromUSD = useCallback((value: number) => value * conversionRate, [conversionRate]);
 
   return (
     <TooltipProvider>
@@ -407,150 +385,276 @@ export default function Home() {
                     Early retire
                   </TabsTrigger>
                 </TabsList>
-              </Tabs>
-            </div>
-
-            {/* Form Fields */}
-            <div className="space-y-6 py-1">
-              {/* Content that should be hidden when ETF selector is open */}
-              <div className={cn("space-y-6", isETFSelectOpen && "hidden")}>
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Prediction</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Make a prediction about your investments on common financial instruments like ETFs.
-                  </p>
-                </div>
-
-                {/* Region Selection */}
-                <Select 
-                  value={userCountry.code}
-                  onValueChange={(code) => {
-                    const country = COUNTRIES.find(c => c.code === code) || COUNTRIES[0]
-                    const oldCurrency = selectedCurrency
-                    setUserCountry(country)
-                    setSelectedCurrency(country.currency)
-                    
-                    // Convert the monthly deposit to the new currency
-                    if (monthlyDeposit > 0 && exchangeRates.length > 0) {
-                      const oldRate = exchangeRates.find(r => r.symbol === oldCurrency)?.rate || 1
-                      const newRate = exchangeRates.find(r => r.symbol === country.currency)?.rate || 1
-                      const valueInUSD = monthlyDeposit / oldRate
-                      const valueInNewCurrency = valueInUSD * newRate
-                      setMonthlyDeposit(Math.round(valueInNewCurrency))
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue>
-                      <div className="flex items-center gap-2">
-                        <span>{userCountry.flag}</span>
-                        <span>{userCountry.name}</span>
+                <TabsContent value="prediction">
+                  {/* Form Fields */}
+                  <div className="space-y-6 py-1">
+                    {/* Content that should be hidden when ETF selector is open */}
+                    <div className={cn("space-y-6", isETFSelectOpen && "hidden")}>
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Prediction</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Make a prediction about your investments on common financial instruments like ETFs.
+                        </p>
                       </div>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COUNTRIES.map(country => (
-                      <SelectItem key={country.code} value={country.code}>
-                        <div className="flex items-center gap-2">
-                          <span>{country.flag}</span>
-                          <span>{country.name}</span>
+
+                      {/* Region Selection */}
+                      <Select 
+                        value={userCountry.code}
+                        onValueChange={(code) => {
+                          const country = COUNTRIES.find(c => c.code === code) || COUNTRIES[0]
+                          const oldCurrency = selectedCurrency
+                          setUserCountry(country)
+                          setSelectedCurrency(country.currency)
+                          
+                          // Convert the monthly deposit to the new currency
+                          if (monthlyDeposit > 0 && exchangeRates.length > 0) {
+                            const oldRate = exchangeRates.find(r => r.symbol === oldCurrency)?.rate || 1
+                            const newRate = exchangeRates.find(r => r.symbol === country.currency)?.rate || 1
+                            const valueInUSD = monthlyDeposit / oldRate
+                            const valueInNewCurrency = valueInUSD * newRate
+                            setMonthlyDeposit(Math.round(valueInNewCurrency))
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue>
+                            <div className="flex items-center gap-2">
+                              <span>{userCountry.flag}</span>
+                              <span>{userCountry.name}</span>
+                            </div>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COUNTRIES.map(country => (
+                            <SelectItem key={country.code} value={country.code}>
+                              <div className="flex items-center gap-2">
+                                <span>{country.flag}</span>
+                                <span>{country.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {/* Monthly Deposit */}
+                      <div className="relative flex items-center">
+                        <div className="absolute left-3 text-sm text-muted-foreground">
+                          {selectedCurrency}
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        <Input
+                          type="number"
+                          value={monthlyDeposit || ''}
+                          onChange={(e) => {
+                            const value = Number(e.target.value)
+                            setMonthlyDeposit(value)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && monthlyDeposit && marketData && annualGrowth > 0) {
+                              handleCalculate()
+                            }
+                          }}
+                          className={`pl-14 ring-offset-2 focus:ring-2 focus:ring-purple-600 ${!monthlyDeposit ? 'border-2 border-purple-200' : ''}`}
+                          placeholder="Monthly Deposit"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                {/* Monthly Deposit */}
-                <div className="relative flex items-center">
-                  <div className="absolute left-3 text-sm text-muted-foreground">
-                    {selectedCurrency}
+                    {/* ETF Select */}
+                    <ETFSelect
+                      value={selectedETF}
+                      onValueChange={(value) => {
+                        setSelectedETF(value)
+                        if (marketData[value]) {
+                          setAnnualGrowth(marketData[value].annualGrowth)
+                        }
+                      }}
+                      isOpen={isETFSelectOpen}
+                      onOpenChange={setIsETFSelectOpen}
+                      marketData={marketData}
+                    />
+
+                    {/* Content that should be hidden when ETF selector is open */}
+                    <div className={cn("space-y-6", isETFSelectOpen && "hidden")}>
+                      {/* Annual Growth Rate */}
+                      <div className="flex flex-col space-y-2">
+                        <label className="text-sm font-medium mb-2 block">Historical Growth</label>
+                        {isLoading ? (
+                          <div className="text-sm text-muted-foreground">Loading...</div>
+                        ) : marketData[selectedETF] ? (
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              value={annualGrowth}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value)
+                                setAnnualGrowth(isNaN(value) ? 0 : value)
+                              }}
+                              className="pl-14 pr-8"
+                              min={0}
+                              max={100}
+                              step={0.1}
+                            />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                              Rate
+                            </div>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                              %
+                            </div>
+                          </div>
+                        ) : (
+                          <Input
+                            type="text"
+                            value="Dati non disponibili"
+                            disabled={true}
+                          />
+                        )}
+                      </div>
+
+                      {/* Error Message */}
+                      {error && (
+                        <div className="text-red-500 text-sm">
+                          {error}
+                        </div>
+                      )}
+
+                      {/* Historical Data Info */}
+                      {marketData && marketData[selectedETF] && (
+                        <p className="text-xs text-muted-foreground">
+                          Predictions are based on historical market data. The growth rate is calculated from {
+                            new Date(marketData[selectedETF].inceptionDate).getFullYear()
+                          } to 2025.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <Input
-                    type="number"
-                    value={monthlyDeposit || ''}
-                    onChange={(e) => {
-                      const value = Number(e.target.value)
-                      setMonthlyDeposit(value)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && monthlyDeposit && marketData && annualGrowth > 0) {
-                        handleCalculate()
-                      }
-                    }}
-                    className={`pl-14 ring-offset-2 focus:ring-2 focus:ring-purple-600 ${!monthlyDeposit ? 'border-2 border-purple-200' : ''}`}
-                    placeholder="Monthly Deposit"
-                    required
-                  />
-                </div>
-              </div>
+                </TabsContent>
 
-              {/* ETF Select */}
-              <ETFSelect
-                value={selectedETF}
-                onValueChange={(value) => {
-                  setSelectedETF(value)
-                  if (marketData[value]) {
-                    setAnnualGrowth(marketData[value].annualGrowth)
-                  }
-                }}
-                isOpen={isETFSelectOpen}
-                onOpenChange={setIsETFSelectOpen}
-                marketData={marketData}
-              />
+                <TabsContent value="early-retire" className="space-y-6 py-1">
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium">Early Retire</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Make a prediction about your retirement.
+                      </p>
+                    </div>
 
-              {/* Content that should be hidden when ETF selector is open */}
-              <div className={cn("space-y-6", isETFSelectOpen && "hidden")}>
-                {/* Annual Growth Rate */}
-                <div className="flex flex-col space-y-2">
-                  <label className="text-sm font-medium mb-2 block">Historical Growth</label>
-                  {isLoading ? (
-                    <div className="text-sm text-muted-foreground">Loading...</div>
-                  ) : marketData[selectedETF] ? (
-                    <div className="relative">
+                    {/* Region Selection */}
+                    <Select 
+                      value={userCountry.code}
+                      onValueChange={(code) => {
+                        const country = COUNTRIES.find(c => c.code === code) || COUNTRIES[0]
+                        setUserCountry(country)
+                        setSelectedCurrency(country.currency)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue>
+                          <div className="flex items-center gap-2">
+                            <span>{userCountry.flag}</span>
+                            <span>{userCountry.name}</span>
+                          </div>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COUNTRIES.map(country => (
+                          <SelectItem key={country.code} value={country.code}>
+                            <div className="flex items-center gap-2">
+                              <span>{country.flag}</span>
+                              <span>{country.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Want to retire from */}
+                    <div className="relative flex items-center">
                       <Input
                         type="number"
-                        value={annualGrowth}
+                        value={yearsToRetire}
                         onChange={(e) => {
-                          const value = parseFloat(e.target.value)
-                          setAnnualGrowth(isNaN(value) ? 0 : value)
+                          const value = Number(e.target.value)
+                          setYearsToRetire(value)
                         }}
                         className="pl-14 pr-8"
-                        min={0}
-                        max={100}
-                        step={0.1}
+                        placeholder="Want to retire from"
                       />
                       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        Rate
+                        Y
                       </div>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    </div>
+
+                    {/* Annual Inflation Rate */}
+                    <div className="relative flex items-center">
+                      <Input
+                        type="number"
+                        value={inflationRate}
+                        onChange={(e) => {
+                          const value = Number(e.target.value)
+                          setInflationRate(value)
+                        }}
+                        className="pl-14 pr-8"
+                        placeholder="Annual Inflation Rate"
+                      />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                         %
                       </div>
                     </div>
-                  ) : (
-                    <Input
-                      type="text"
-                      value="Dati non disponibili"
-                      disabled={true}
-                    />
-                  )}
-                </div>
 
-                {/* Error Message */}
-                {error && (
-                  <div className="text-red-500 text-sm">
-                    {error}
+                    {/* Total Prediction */}
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3 text-sm text-muted-foreground">
+                        {selectedCurrency}
+                      </div>
+                      <Input
+                        type="number"
+                        value={totalPrediction || ''}
+                        onChange={(e) => {
+                          const value = Number(e.target.value)
+                          setTotalPrediction(value)
+                        }}
+                        className="pl-14"
+                        placeholder="Total Prediction"
+                      />
+                    </div>
+
+                    {/* Extra Income */}
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3 text-sm text-muted-foreground">
+                        {selectedCurrency}
+                      </div>
+                      <Input
+                        type="number"
+                        value={extraIncome || ''}
+                        onChange={(e) => {
+                          const value = Number(e.target.value)
+                          setExtraIncome(value)
+                        }}
+                        className="pl-14"
+                        placeholder="Monthly Deposit"
+                      />
+                    </div>
+
+                    {/* Monthly Expenses */}
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3 text-sm text-muted-foreground">
+                        {selectedCurrency}
+                      </div>
+                      <Input
+                        type="number"
+                        value={monthlyExpenses || ''}
+                        onChange={(e) => {
+                          const value = Number(e.target.value)
+                          setMonthlyExpenses(value)
+                        }}
+                        className="pl-14"
+                        placeholder="Monthly Expenses"
+                      />
+                    </div>
                   </div>
-                )}
-
-                {/* Historical Data Info */}
-                {marketData && marketData[selectedETF] && (
-                  <p className="text-xs text-muted-foreground">
-                    Predictions are based on historical market data. The growth rate is calculated from {
-                      new Date(marketData[selectedETF].inceptionDate).getFullYear()
-                    } to 2025.
-                  </p>
-                )}
-              </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
 
