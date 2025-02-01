@@ -79,9 +79,9 @@ function calculateProjection(
   monthlyDeposit: number,
   yearsToInvest: number,
   selectedETF: string,
-  etfData: ETFDataResponse | null
+  marketData: Record<string, ETFMarketData> | null
 ): ProjectionResult {
-  if (!etfData || !etfData.etfs[selectedETF]) {
+  if (!marketData || !marketData[selectedETF]) {
     return {
       totalDeposits: 0,
       projectedValue: 0
@@ -89,14 +89,18 @@ function calculateProjection(
   }
 
   const totalDeposits = monthlyDeposit * 12 * yearsToInvest
-  const etf = etfData.etfs[selectedETF]
+  const etf = marketData[selectedETF]
   
   // Run Monte Carlo simulation
   const monteCarloResults = runMonteCarloSimulation(
     monthlyDeposit,
     yearsToInvest,
     etf.defaultGrowthRate,
-    etf,
+    {
+      symbol: selectedETF,
+      annualGrowth: etf.annualGrowth,
+      defaultGrowthRate: etf.defaultGrowthRate
+    },
     10000
   )
 
@@ -121,18 +125,18 @@ function calculateProjection(
 // Add descriptions for ETF types at the top with the other constants
 const ETF_TYPE_DESCRIPTIONS = {
   'sp500': 'The S&P 500 tracks the 500 largest U.S. companies. It\'s considered the benchmark for the U.S. stock market, offering broad market exposure with historically consistent returns.',
-  'nasdaq': 'The NASDAQ-100 focuses on the largest non-financial companies listed on the NASDAQ exchange. It\'s heavily weighted towards technology companies, offering higher growth potential with higher volatility.',
+  'nasdaq100': 'The NASDAQ-100 focuses on the largest non-financial companies listed on the NASDAQ exchange. It\'s heavily weighted towards technology companies, offering higher growth potential with higher volatility.',
   'total-market': 'Total Market ETFs provide exposure to the entire U.S. stock market, including small, mid, and large-cap stocks. They offer the broadest diversification across all market segments.'
 } as const;
 
 const isETFTypeId = (id: string): id is ETFTypeId => {
-  return ['sp500', 'nasdaq', 'total-market'].includes(id);
+  return ['sp500', 'nasdaq100', 'total-market'].includes(id);
 };
 
 const DEFAULT_GROWTH_RATES: Record<ETFTypeId, number> = {
   'sp500': 0,
-  'nasdaq': 0,
-  'total-market': 0,
+  'nasdaq100': 0,
+  'total-market': 0
 };
 
 // Aggiungiamo interfacce per i dati del paese
@@ -211,7 +215,6 @@ export default function Home() {
   const [selectedETFType, setSelectedETFType] = useState<ETFTypeId>('sp500')
   const [selectedETF, setSelectedETF] = useState<string>("VOO")
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([])
-  const [etfData, setEtfData] = useState<ETFDataResponse | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [annualGrowth, setAnnualGrowth] = useState<number>(0)
@@ -249,38 +252,35 @@ export default function Home() {
   // Fetch ETF data
   useEffect(() => {
     const fetchInitialData = async () => {
-      setIsLoading(true);
       try {
-        const [etfResponse, marketResponse] = await Promise.all([
-          fetch('/api/etf-data'),
-          fetch('/api/etf-market-data')
-        ]);
-        
-        const etfData: ETFDataResponse = await etfResponse.json();
-        const marketData = await marketResponse.json();
+        setIsLoading(true)
+        setError(null)
 
-        // Aggiungi questo console.log per visualizzare i dati di mercato
-        console.log('ETF Market Data:', Object.entries(marketData.marketData).map(([symbol, data]) => ({
-          symbol,
-          price: `$${data.price}`,
-          volume: data.volume
-        })));
+        const [marketDataResponse] = await Promise.all([
+          fetch('/api/etf-market-data'),
+        ])
 
-        setEtfData(etfData);
-        setMarketData(marketData.marketData);
-        
-        if (etfData.etfs[selectedETF]) {
-          setAnnualGrowth(etfData.etfs[selectedETF].annualGrowth);
+        if (!marketDataResponse.ok) {
+          throw new Error('Failed to fetch market data')
+        }
+
+        const marketData = await marketDataResponse.json()
+        setMarketData(marketData.marketData)
+
+        // Set initial annual growth rate
+        if (marketData.marketData[selectedETF]) {
+          setAnnualGrowth(marketData.marketData[selectedETF].annualGrowth)
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Error fetching ETF data');
+        console.error('Error fetching initial data:', error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch data')
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
-    fetchInitialData();
-  }, [selectedETF]);
+    }
+
+    fetchInitialData()
+  }, [selectedETF])
 
   // Detect user's location
   useEffect(() => {
@@ -321,9 +321,9 @@ export default function Home() {
   const convertToUSD = (value: number) => value / conversionRate
   const convertFromUSD = (value: number) => value * conversionRate
 
-  // Update handleCalculate to use the simplified projectionData
+  // Update handleCalculate to use marketData
   const handleCalculate = useCallback(() => {
-    if (monthlyDeposit > 0 && etfData && annualGrowth > 0) {
+    if (monthlyDeposit > 0 && marketData && annualGrowth > 0) {
       setChartData(calculateProjectionData(
         monthlyDeposit,
         annualGrowth,
@@ -331,14 +331,14 @@ export default function Home() {
         conversionRate
       ));
       setHasCalculatedOnce(true);
-    } else if (!etfData || annualGrowth === 0) {
-      setError('Impossibile calcolare: dati ETF non disponibili');
+    } else if (!marketData || annualGrowth === 0) {
+      setError('Unable to calculate: ETF data not available');
     }
-  }, [monthlyDeposit, etfData, annualGrowth, conversionRate]);
+  }, [monthlyDeposit, marketData, annualGrowth, conversionRate]);
 
   // Update the effect that updates chart data
   useEffect(() => {
-    if (hasCalculatedOnce && monthlyDeposit > 0 && etfData && annualGrowth > 0) {
+    if (hasCalculatedOnce && monthlyDeposit > 0 && marketData && annualGrowth > 0) {
       setChartData(calculateProjectionData(
         monthlyDeposit,
         annualGrowth,
@@ -346,7 +346,7 @@ export default function Home() {
         conversionRate
       ));
     }
-  }, [hasCalculatedOnce, monthlyDeposit, etfData, annualGrowth, conversionRate]);
+  }, [hasCalculatedOnce, monthlyDeposit, marketData, annualGrowth, conversionRate]);
 
   // Fetch market data when component mounts
   useEffect(() => {
@@ -473,7 +473,7 @@ export default function Home() {
                       setMonthlyDeposit(value)
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && monthlyDeposit && etfData && annualGrowth > 0) {
+                      if (e.key === 'Enter' && monthlyDeposit && marketData && annualGrowth > 0) {
                         handleCalculate()
                       }
                     }}
@@ -558,7 +558,7 @@ export default function Home() {
           <div className={cn("mt-auto pt-6 space-y-4 px-1", isETFSelectOpen && "hidden")}>
             <Button  
               onClick={handleCalculate}
-              disabled={!monthlyDeposit || !etfData || annualGrowth === 0}
+              disabled={!monthlyDeposit || !marketData || annualGrowth === 0}
               className="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 rounded-xl py-5 text-lg font-medium flex items-center justify-center gap-2"
             >
               Calculate

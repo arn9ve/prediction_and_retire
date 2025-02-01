@@ -2,18 +2,60 @@ import { ETF_TYPES } from '@/data/etf-types'
 
 interface YahooFinanceQuote {
   symbol: string
-  regularMarketPrice: number
-  regularMarketVolume: number
+  regularMarketPrice: number | null
+  regularMarketVolume: number | null
   firstTradeDateMillis: number
 }
 
 interface YahooFinanceHistoricalData {
   timestamp: number[]
-  close: number[]
+  indicators: {
+    quote: [{
+      close: number[]
+      volume: number[]
+      open: number[]
+      high: number[]
+      low: number[]
+    }]
+  }
+}
+
+interface YahooFinanceChartResult {
+  chart: {
+    result: [{
+      meta: {
+        currency: string
+        symbol: string
+        exchangeName: string
+        instrumentType: string
+        firstTradeDate: number
+        regularMarketTime: number
+        gmtoffset: number
+        timezone: string
+        exchangeTimezoneName: string
+        regularMarketPrice: number
+        chartPreviousClose: number
+        previousClose: number
+        scale: number
+        priceHint: number
+      }
+      timestamp: number[]
+      indicators: {
+        quote: [{
+          close: number[]
+          volume: number[]
+          open: number[]
+          high: number[]
+          low: number[]
+        }]
+      }
+    }]
+    error: null | string
+  }
 }
 
 export interface ETFMarketData {
-  price: number
+  price: number | null
   volume: string
   inceptionDate: string
   years: number
@@ -22,7 +64,8 @@ export interface ETFMarketData {
 }
 
 // Funzione per formattare il volume in formato leggibile (es: 1.2M)
-function formatVolume(volume: number): string {
+function formatVolume(volume: number | null | undefined): string {
+  if (!volume) return '---'
   if (volume >= 1000000) {
     return `${(volume / 1000000).toFixed(1)}M`
   }
@@ -34,13 +77,15 @@ function formatVolume(volume: number): string {
 
 // Calcola la crescita annuale media usando i prezzi storici
 function calculateAnnualGrowth(historicalData: YahooFinanceHistoricalData): number {
-  const prices = historicalData.close
+  const prices = historicalData.indicators.quote[0].close
   const timestamps = historicalData.timestamp
   
   if (prices.length < 2) return 0
   
-  const firstPrice = prices[0]
-  const lastPrice = prices[prices.length - 1]
+  // Filter out any null values
+  const validPrices = prices.filter((price): price is number => price !== null)
+  const firstPrice = validPrices[0]
+  const lastPrice = validPrices[validPrices.length - 1]
   const yearsDiff = (timestamps[timestamps.length - 1] - timestamps[0]) / (365 * 24 * 60 * 60 * 1000)
   
   // Formula: (Final Value / Initial Value)^(1/n) - 1
@@ -95,7 +140,7 @@ export async function getETFMarketData(): Promise<Record<string, ETFMarketData>>
           throw new Error(error.error || `Historical API error for ${symbol}: ${historicalResponse.status}`)
         }
         
-        const historicalData = await historicalResponse.json()
+        const historicalData = await historicalResponse.json() as YahooFinanceChartResult
         console.log(`Historical data for ${symbol}:`, historicalData)
         
         if (!historicalData.chart?.result?.[0]?.indicators?.quote?.[0]) {
@@ -110,9 +155,12 @@ export async function getETFMarketData(): Promise<Record<string, ETFMarketData>>
             price: quote.regularMarketPrice,
             volume: formatVolume(quote.regularMarketVolume),
             inceptionDate: new Date(quote.firstTradeDateMillis).toISOString().split('T')[0],
-            years: (endDate - startDate) / (365 * 24 * 60 * 60),
-            annualGrowth: calculateAnnualGrowth(result.indicators.quote[0]),
-            defaultGrowthRate: 0 // Assuming defaultGrowthRate is not available in the historical data
+            years: Math.floor((endDate - startDate) / (365 * 24 * 60 * 60)),
+            annualGrowth: calculateAnnualGrowth({
+              timestamp: result.timestamp,
+              indicators: result.indicators
+            }),
+            defaultGrowthRate: 0 // We'll calculate this based on historical performance
           }
         }
       } catch (error) {

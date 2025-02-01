@@ -1,44 +1,37 @@
-# ETF Prediction & Retirement Planning
+# ETF Investment Calculator
 
-A sophisticated web application for ETF (Exchange-Traded Fund) analysis and retirement planning, featuring Monte Carlo simulations and advanced market data analysis.
+A modern web application built with Next.js that helps users calculate and visualize their potential investment returns with ETFs (Exchange-Traded Funds).
 
-## 🌟 Features
+## Features
 
-- **ETF Analysis**: Comprehensive analysis of ETF performance and historical data
-- **Monte Carlo Simulations**: Advanced prediction modeling for investment outcomes
-- **Real-time Market Data**: Integration with Yahoo Finance API for up-to-date market information
-- **Interactive Charts**: Visual representation of ETF performance and predictions
-- **Retirement Planning Tools**: Customizable retirement planning calculations
-- **User Authentication**: Secure user accounts and data management
-- **Responsive Design**: Modern UI that works across all devices
+- 📊 Real-time ETF data from Yahoo Finance
+- 💰 Investment return calculations with Monte Carlo simulations
+- 🌍 Multi-currency support with automatic currency conversion
+- 📱 Responsive design that works on all devices
+- 📈 Interactive charts showing investment growth
+- 🌐 Automatic location detection and currency selection
+- 🎯 Support for various ETF types:
+  - S&P 500 ETFs
+  - Nasdaq-100 ETFs
+  - Total Market ETFs
 
-## 🚀 Technologies
+## Tech Stack
 
-- **Frontend**:
-  - Next.js 14 (App Router)
-  - React
-  - TypeScript
-  - Tailwind CSS
-  - Shadcn UI Components
-  - Recharts for data visualization
+- **Framework**: Next.js 14 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Shadcn UI
+- **Charts**: Custom Line Chart component
+- **State Management**: React Hooks
+- **API Integration**: Yahoo Finance API
+- **Animations**: Framer Motion
 
-- **Backend**:
-  - Next.js API Routes
-  - Firebase Authentication
-  - Firebase Realtime Database
-  - Firebase Storage
-
-- **Data Processing**:
-  - Yahoo Finance API integration
-  - Custom Monte Carlo simulation engine
-  - ETF data processing workers
-
-## 📦 Installation
+## Getting Started
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/arn9ve/prediction_and_retire.git
-cd prediction_and_retire
+git clone [repository-url]
+cd [project-directory]
 ```
 
 2. Install dependencies:
@@ -46,71 +39,70 @@ cd prediction_and_retire
 npm install
 ```
 
-3. Set up environment variables:
-Create a `.env.local` file with the following variables:
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-```
-
-4. Run the development server:
+3. Run the development server:
 ```bash
 npm run dev
 ```
 
-## 🔧 Usage
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-1. **ETF Analysis**:
-   - Select an ETF from the dropdown menu
-   - View historical performance data
-   - Analyze trends and patterns
+## Project Structure
 
-2. **Retirement Planning**:
-   - Input your financial goals and timeline
-   - Adjust investment parameters
-   - View Monte Carlo simulation results
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   │   ├── etf-market-data/  # ETF market data endpoint
+│   │   └── yahoo-finance/    # Yahoo Finance proxy endpoint
+│   └── page.tsx           # Main application page
+├── components/            # React components
+│   ├── ui/               # UI components
+│   └── etf-select.tsx    # ETF selection component
+├── lib/                  # Utility functions
+│   ├── monte-carlo.ts    # Monte Carlo simulation
+│   └── yahoo-finance.ts  # Yahoo Finance API integration
+├── types/                # TypeScript type definitions
+└── data/                 # Static data and configurations
+```
 
-3. **Portfolio Management**:
-   - Track multiple ETFs
-   - Compare performance metrics
-   - Set up investment alerts
+## Features in Detail
 
-## 🤝 Contributing
+### ETF Data
+- Real-time market data fetching from Yahoo Finance
+- Historical performance data
+- Volume and price information
+- Automatic growth rate calculations
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### Investment Calculations
+- Monthly deposit projections
+- Compound interest calculations
+- Monte Carlo simulations for risk assessment
+- Inflation-adjusted future values
 
-## 📝 License
+### Currency Support
+- Automatic currency detection based on location
+- Real-time currency conversion
+- Support for major world currencies (USD, EUR, GBP, etc.)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### User Interface
+- Clean and modern design
+- Interactive charts
+- Responsive layout
+- Smooth animations
+- Tooltips for better user guidance
 
-## 👥 Authors
+## Recent Updates
 
-- **Amir** - *Initial work* - [arn9ve](https://github.com/arn9ve)
+- Fixed API endpoint issues
+- Improved type definitions for ETF data
+- Enhanced error handling for API calls
+- Added proper null value handling
+- Updated currency conversion logic
 
-## 🙏 Acknowledgments
+## Contributing
 
-- Yahoo Finance API for market data
-- Firebase team for authentication and database solutions
-- Shadcn UI for component library
-- Next.js team for the amazing framework
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📊 Project Status
+## License
 
-This project is actively under development. New features and improvements are being added regularly.
-
-## 🔮 Future Enhancements
-
-- Advanced portfolio optimization algorithms
-- Machine learning-based prediction models
-- Social features for sharing investment strategies
-- Mobile app development
-- Integration with more financial data providers
-- Enhanced retirement planning calculators
+This project is licensed under the MIT License - see the LICENSE file for details.

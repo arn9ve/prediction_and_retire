@@ -29,6 +29,14 @@ export async function GET(request: Request) {
       const period1 = searchParams.get('period1')
       const period2 = searchParams.get('period2')
       const interval = searchParams.get('interval')
+      
+      if (!period1 || !period2 || !interval) {
+        return NextResponse.json(
+          { error: 'Missing required chart parameters' },
+          { status: 400 }
+        )
+      }
+      
       url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbols}?period1=${period1}&period2=${period2}&interval=${interval}`
     } else {
       return NextResponse.json(
@@ -51,7 +59,7 @@ export async function GET(request: Request) {
     
     const data = await response.json()
     
-    // Verifica che i dati siano nel formato atteso
+    // Verify data format
     if (endpoint === 'quote' && !data.quoteResponse?.result) {
       console.error('Invalid quote response:', data)
       throw new Error('Invalid quote response format')
