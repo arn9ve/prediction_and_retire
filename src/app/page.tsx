@@ -235,6 +235,7 @@ export default function Home() {
   const [totalPrediction, setTotalPrediction] = useState<number>(0)
   const [extraIncome, setExtraIncome] = useState<number>(0)
   const [monthlyExpenses, setMonthlyExpenses] = useState<number>(0)
+  const [isMarketDataLoading, setIsMarketDataLoading] = useState(true)
 
   // Reset error when dependencies change
   useEffect(() => {
@@ -266,22 +267,17 @@ export default function Home() {
   // Fetch market data
   useEffect(() => {
     const fetchMarketData = async () => {
-      if (!selectedETF) return
-      
       try {
-        setIsLoading(true)
-        const response = await fetch(`/api/etf-market-data?symbol=${selectedETF}`)
-        const data = await response.json()
-        setMarketData(prevData => ({
-          ...prevData,
-          [selectedETF]: data
-        }))
-        setAnnualGrowth(data.annualGrowth || 0)
+        setIsMarketDataLoading(true)
+        const response = await fetch('/api/etf-market-data')
+        const { marketData } = await response.json()
+        setMarketData(marketData)
+        setAnnualGrowth(marketData[selectedETF].annualGrowth || 0)
       } catch (error) {
         console.error('Error fetching market data:', error)
         setError('Failed to fetch market data')
       } finally {
-        setIsLoading(false)
+        setIsMarketDataLoading(false)
       }
     }
 
@@ -463,15 +459,11 @@ export default function Home() {
                     {/* ETF Select */}
                     <ETFSelect
                       value={selectedETF}
-                      onValueChange={(value) => {
-                        setSelectedETF(value)
-                        if (marketData[value]) {
-                          setAnnualGrowth(marketData[value].annualGrowth)
-                        }
-                      }}
+                      onValueChange={setSelectedETF}
                       isOpen={isETFSelectOpen}
                       onOpenChange={setIsETFSelectOpen}
                       marketData={marketData}
+                      isLoading={isMarketDataLoading}
                     />
 
                     {/* Content that should be hidden when ETF selector is open */}

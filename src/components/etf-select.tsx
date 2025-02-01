@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Globe, TrendingUp, Calendar } from 'lucide-react'
 import { Search } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 import { ETF_TYPES } from '@/data/etf-types'
 import { ETFMarketData } from '@/lib/yahoo-finance'
@@ -36,6 +37,7 @@ interface ETFSelectProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   marketData: Record<string, ETFMarketData>
+  isLoading?: boolean
 }
 
 const spring = {
@@ -44,7 +46,7 @@ const spring = {
   damping: 30
 }
 
-export default function ETFSelect({ value, onValueChange, isOpen, onOpenChange, marketData }: ETFSelectProps) {
+export default function ETFSelect({ value, onValueChange, isOpen, onOpenChange, marketData, isLoading = false }: ETFSelectProps) {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [hoveredETF, setHoveredETF] = React.useState<string | null>(null)
 
@@ -173,10 +175,13 @@ export default function ETFSelect({ value, onValueChange, isOpen, onOpenChange, 
                                     {marketData[etf.symbol]?.volume || '---'}
                                   </span>
                                   <span className="text-sm whitespace-nowrap">
-                                    {marketData[etf.symbol]?.price 
-                                      ? `$${marketData[etf.symbol].price.toFixed(2)}`
-                                      : '---'
-                                    }
+                                    {isLoading ? (
+                                      <div className="h-4 bg-gray-100 rounded w-12 animate-pulse" />
+                                    ) : (
+                                      marketData[etf.symbol]?.price !== null && marketData[etf.symbol]?.price !== undefined 
+                                        ? `$${marketData[etf.symbol].price.toFixed(2)}`
+                                        : '---'
+                                    )}
                                   </span>
                                 </motion.div>
                               </TooltipTrigger>
@@ -198,12 +203,11 @@ export default function ETFSelect({ value, onValueChange, isOpen, onOpenChange, 
                                       <span className="text-gray-600">Historical Growth ({marketData[etf.symbol]?.years || 0}Y):</span>
                                       <span className={cn(
                                         "font-medium",
-                                        marketData[etf.symbol]?.annualGrowth > 0 ? "text-green-600" : "text-red-600"
+                                        (marketData[etf.symbol]?.annualGrowth || 0) > 0 ? "text-green-600" : "text-red-600"
                                       )}>
-                                        {marketData[etf.symbol]?.annualGrowth 
-                                          ? `${marketData[etf.symbol].annualGrowth.toFixed(2)}%`
-                                          : '---'
-                                        }
+                                        {marketData[etf.symbol]?.annualGrowth !== undefined 
+                                          ? `${Math.abs(marketData[etf.symbol].annualGrowth).toFixed(2)}%`
+                                          : '---'}
                                       </span>
                                     </div>
                                   </div>
