@@ -166,7 +166,11 @@ export async function getETFMarketData(): Promise<Record<string, ETFMarketData>>
               timestamp: result.timestamp,
               indicators: result.indicators
             }),
-            defaultGrowthRate: 0 // We'll calculate this based on historical performance
+            defaultGrowthRate: 0, // We'll calculate this based on historical performance
+            historicalData: result.timestamp.map((timestamp, i) => ({
+              date: new Date(timestamp * 1000).toISOString().split('T')[0],
+              close: result.indicators.quote[0].close[i] || 0
+            }))
           }
         }
       } catch (error) {

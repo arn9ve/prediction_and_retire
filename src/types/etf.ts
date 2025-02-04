@@ -2,6 +2,12 @@ export type ETFTypeId =
   | 'sp500' 
   | 'nasdaq100' 
   | 'total-market'
+  | 'sectors'
+  | 'dividend'
+  | 'international'
+  | 'factor'
+  | 'bond'
+  | 'commodity'
 
 export interface ETFData {
   symbol: string

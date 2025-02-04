@@ -34,7 +34,7 @@ export const ETF_TYPES: ETFType[] = [
     ]
   },
   {
-    id: 'sector',
+    id: 'sectors',
     name: 'Sector ETFs',
     etfs: [
       { symbol: 'XLK', name: 'Technology Select SPDR', description: 'Technology sector - includes software, hardware, and tech services.' },

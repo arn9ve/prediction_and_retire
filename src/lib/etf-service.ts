@@ -1,4 +1,19 @@
-import LRUCache from 'lru-cache'
+import { LRUCache } from 'lru-cache'
+import type { ETFData as BaseETFData } from '@/types/etf'
+
+// Extend the base ETFData type to include historicalData
+interface ETFData extends BaseETFData {
+  historicalData: Array<{
+    date: string
+    close: number
+  }>
+}
+
+interface ProjectionResults {
+  conservative: number
+  moderate: number
+  aggressive: number
+}
 
 interface ETFStrategy {
   fetchData(symbol: string): Promise<ETFData>
@@ -16,7 +31,7 @@ export class HybridETFStrategy implements ETFStrategy {
     private apiClient: ETFDataClient,
     private cacheTTL: number = 3600
   ) {
-    this.cache = new LRUCache<string, ETFData>({
+    this.cache = new LRUCache({
       max: 100,
       ttl: this.cacheTTL * 1000
     })

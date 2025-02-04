@@ -5,6 +5,18 @@ self.onmessage = (e) => {
 };
 
 function performHeavyCalculations(amount: number, days: number, percentage: number) {
-  // Optimized calculation logic
+  const dailyRate = percentage / 100 / 365;
+  const optimizedResults = {
+    projections: Array.from({ length: days }, (_, i) => ({
+      day: i + 1,
+      value: amount * Math.pow(1 + dailyRate, i + 1)
+    })),
+    metadata: {
+      initialAmount: amount,
+      totalDays: days,
+      annualPercentage: percentage,
+      finalValue: amount * Math.pow(1 + dailyRate, days)
+    }
+  };
   return optimizedResults;
 } 

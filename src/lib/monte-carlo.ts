@@ -1,4 +1,11 @@
-import { type ETFData } from '@/types/etf'
+import { type ETFData as BaseETFData } from '@/types/etf'
+
+type ETFData = BaseETFData & {
+  historicalData: Array<{
+    date: string
+    close: number
+  }>
+}
 
 export interface MonteCarloResult {
   percentiles: {
@@ -36,7 +43,9 @@ export function runMonteCarloSimulation(
   // Manage cache size
   if (simulationCache.size >= MAX_CACHE_SIZE) {
     const firstKey = simulationCache.keys().next().value;
-    simulationCache.delete(firstKey);
+    if (firstKey !== undefined) {
+      simulationCache.delete(firstKey);
+    }
   }
 
   // Calculate historical returns and volatility

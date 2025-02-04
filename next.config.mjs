@@ -26,9 +26,15 @@ const nextConfig = {
   },
   async rewrites() {
     return [
+      // External API routes
+      {
+        source: "/api/external/openai/:path*",
+        destination: "https://api.openai.com/:path*",
+      },
+      // Keep internal API routes as is
       {
         source: "/api/:path*",
-        destination: "https://api.openai.com/:path*",
+        destination: "/api/:path*",
       },
     ];
   },

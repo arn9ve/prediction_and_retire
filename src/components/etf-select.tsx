@@ -178,8 +178,8 @@ export default function ETFSelect({ value, onValueChange, isOpen, onOpenChange, 
                                     {isLoading ? (
                                       <div className="h-4 bg-gray-100 rounded w-12 animate-pulse" />
                                     ) : (
-                                      marketData[etf.symbol]?.price !== null && marketData[etf.symbol]?.price !== undefined 
-                                        ? `$${marketData[etf.symbol].price.toFixed(2)}`
+                                      marketData[etf.symbol]?.price != null
+                                        ? `$${Number(marketData[etf.symbol]?.price).toFixed(2)}`
                                         : '---'
                                     )}
                                   </span>

@@ -1,6 +1,10 @@
 import { FixedSizeList as List } from 'react-window';
 
-const PredictionResults = ({ data }) => (
+interface PredictionResultsProps {
+  data: number[];
+}
+
+const PredictionResults = ({ data }: PredictionResultsProps) => (
   <List
     height={400}
     itemCount={data.length}

@@ -1,14 +1,11 @@
-export async function fetchETFDATA(symbol: string): Promise<ETFData> {
+import { ETFMarketData, getETFMarketData } from '@/lib/yahoo-finance';
+
+export async function fetchETFData(symbol: string): Promise<ETFMarketData | null> {
   try {
-    // Prima cerca nei dati statici
-    const staticData = await import(`../data/etfs/${symbol}.json`)
-    if (isRecent(staticData)) return staticData
-    
-    // Fallback all'API
-    const liveData = await apiClient.fetch(symbol)
-    await saveStaticBackup(symbol, liveData)
-    return liveData
+    const marketData = await getETFMarketData();
+    return marketData[symbol] || null;
   } catch (error) {
-    return fallbackDataService.get(symbol)
+    console.error(`Error fetching data for ETF ${symbol}:`, error);
+    return null;
   }
 } 

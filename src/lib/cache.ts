@@ -1,6 +1,9 @@
+import { ETFMarketData } from '@/lib/yahoo-finance';
+import { getETFMarketData } from '@/lib/yahoo-finance';
+
 export class ETFCache {
   private static instance: ETFCache
-  private cache: Map<string, ETFData>
+  private cache: Map<string, ETFMarketData>
   
   private constructor() {
     this.cache = new Map()
@@ -9,10 +12,14 @@ export class ETFCache {
 
   private async initAutoRefresh() {
     setInterval(async () => {
-      for (const [symbol] of this.cache) {
-        const newData = await apiClient.fetchUpdatedData(symbol)
-        this.cache.set(symbol, newData)
+      try {
+        const marketData = await getETFMarketData()
+        for (const [symbol, data] of Object.entries(marketData)) {
+          this.cache.set(symbol, data)
+        }
+      } catch (error) {
+        console.error('Failed to refresh ETF data:', error)
       }
-    }, 60 * 60 * 1000) // Aggiornamento orario
+    }, 60 * 60 * 1000) // Hourly update
   }
 } 

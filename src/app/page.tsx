@@ -99,7 +99,11 @@ function calculateProjection(
     {
       symbol: selectedETF,
       annualGrowth: etf.annualGrowth,
-      defaultGrowthRate: etf.defaultGrowthRate
+      defaultGrowthRate: etf.defaultGrowthRate,
+      historicalData: etf.historicalData || [
+        { date: new Date().toISOString().split('T')[0], close: etf.price || 0 },
+        { date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], close: etf.price || 0 }
+      ]
     },
     10000
   )
@@ -136,7 +140,13 @@ const isETFTypeId = (id: string): id is ETFTypeId => {
 const DEFAULT_GROWTH_RATES: Record<ETFTypeId, number> = {
   'sp500': 0,
   'nasdaq100': 0,
-  'total-market': 0
+  'total-market': 0,
+  'sectors': 0,
+  'dividend': 0,
+  'international': 0,
+  'factor': 0,
+  'bond': 0,
+  'commodity': 0
 };
 
 // Aggiungiamo interfacce per i dati del paese
@@ -242,7 +252,7 @@ export default function Home() {
     if (error) {
       setError(null)
     }
-  }, [monthlyDeposit, selectedETF, annualGrowth])
+  }, [monthlyDeposit, selectedETF, annualGrowth, error])
 
   // Fetch exchange rates
   useEffect(() => {
@@ -346,7 +356,7 @@ export default function Home() {
       );
       setChartData(newChartData);
     }
-  }, [hasCalculatedOnce, monthlyDeposit, marketData, annualGrowth, conversionRate, calculateProjectionData]);
+  }, [hasCalculatedOnce, monthlyDeposit, marketData, annualGrowth, conversionRate]);
 
   // Memoize the conversion functions to prevent unnecessary re-renders
   const convertToUSD = useCallback((value: number) => value / conversionRate, [conversionRate]);
@@ -497,7 +507,7 @@ export default function Home() {
                         ) : (
                           <Input
                             type="text"
-                            value="Dati non disponibili"
+                            value="Data not available"
                             disabled={true}
                           />
                         )}
@@ -700,6 +710,7 @@ export default function Home() {
                 </Card>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[275px]">
+                {/* eslint-disable-next-line react/no-unescaped-entities */}
                 <p>The total amount you've invested (your monthly deposits summed up)</p>
               </TooltipContent>
             </Tooltip>
@@ -737,13 +748,14 @@ export default function Home() {
                         }) : '0'}
                       </p>
                       <p className="text-sm text-purple-400/80">
+                        {/* eslint-disable-next-line react/no-unescaped-entities */}
                         {chartData.length > 0 ? 
                           (chartData[chartData.length - 1].allTotal / Math.pow(1.025, 30)).toLocaleString('en-US', {
                             style: 'currency',
                             currency: selectedCurrency,
                             maximumFractionDigits: 0,
                           })
-                          : '0'} (in today's value)
+                          : '0'} (in today&apos;s value)
                       </p>
                     </div>
                     <h3 className="text-purple-600 text-sm font-medium uppercase tracking-wide mt-2">Total over time</h3>
@@ -751,6 +763,7 @@ export default function Home() {
                 </Card>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[275px]">
+                {/* eslint-disable-next-line react/no-unescaped-entities */}
                 <p>The expected total value of your investment based on the selected growth rate. Adjusted value shows equivalent purchasing power in today's money assuming 2.5% annual inflation over 30 years.</p>
               </TooltipContent>
             </Tooltip>
